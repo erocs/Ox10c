@@ -1,0 +1,73 @@
+; Sum even Fibonacci numbers.
+; Y is the count of even Fibonacci numbers to sum.
+; 2012-May-01 Erocs
+
+; This contains 2 methods for doing the calculation. FUNC_REALFIB
+;  uses a traditional calculate the FIB sequence, find even
+;  values, and sum them. FUNC_JUMPTFIB uses a pre-calculated jump
+;  table to provide a fast sum. Both utilize Y as the number of
+;  values to sum and output the sum in X.
+
+SET Y, 5  ; Number of even FIB values to sum
+SET PC, FUNC_REALFIB
+; SET PC, FUNC_JUMPTFIB
+
+
+:FUNC_REALFIB
+  ; Y contains the number of even FIB values to sum. Max count
+  ;  is 8, past which 16-bit sums overflow
+  ; X will contain the final sum
+
+SET A, 0  ; FIB #1
+SET B, 1  ; FIB #2
+;   C     ; TEMP
+SET I, 0  ; Count of numbers summed
+SET X, 0  ; Total of numbers summed, result
+
+:LOOP
+IFE I, Y        ; Summed enough numbers?
+  SET PC, EXIT_REALFIB  ; YES, halt
+ADD A, B        ; Next Fibonacci number in A
+                ; Swap everything
+SET C, A        ; Keep new number in temp
+SET A, B        ; A is the lower number
+SET B, C        ; B is the higher number
+AND C, 0x0001   ; Mask even/odd bit
+IFN C, 0        ; Test even
+  SET PC, LOOP  ; Not even, loop
+                ; Even detected
+ADD X, B        ; Add to the sum
+ADD I, 1        ; Increment counter
+SET PC, LOOP    ; Once again...
+:EXIT_REALFIB
+; Result == X
+SUB PC, 1       ; CPU halt
+
+
+; Alternate based upon jump table idea (derivative from Bobbias'
+;  entry)
+
+:FUNC_JUMPTFIB
+  ; Y contains the number of even FIB values to sum. Max count
+  ;  is 8, past which 16-bit sums overflow
+  ; X will contain the final sum
+
+SET C, 8      ; 'Jump table' size
+SUB C, Y      ; Find table entry
+MUL C, 2      ; Adjust for 2 byte instructions
+SET X, 0      ; Initialize X for summing
+ADD X, 0      ; NOP pad the next instruction for alignment
+ADD PC, C     ; Jump to the summation start
+ADD X, 46368  ; FIB 8
+ADD X, 10946  ; FIB 7
+ADD X, 2584   ; FIB 6
+ADD X, 610    ; FIB 5
+ADD X, 144    ; FIB 4
+ADD X, 34     ; FIB 3
+  ; Next 2 instructions are only 1 byte. No way in assembler to
+  ;  force ADD A, NEXTWORD with 'literal' values, more padding
+ADD X, 8      ; FIB 2
+ADD X, 0      ; NOP padding
+ADD X, 2      ; FIB 1
+  ; Result in X
+SUB PC, 1     ; CPU halt

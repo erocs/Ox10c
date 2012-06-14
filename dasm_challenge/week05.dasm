@@ -1,0 +1,112 @@
+; DASM Challenge Week 5
+; Find the unique binary sub-patterns lengths [2..8] in N
+; DCPU-16 v1.7
+; 2012-June-13 Erocs
+
+SET A, 0x6958
+JSR FUNC_COUNT_BIT_PATTERNS
+
+; HALT HALT HALT
+SUB PC, 1
+; HALT HALT HALT
+
+
+:FUNC_COUNT_BIT_PATTERNS
+; A input, number to decompose and count bit patterns
+; B output, the number of bit patterns length 2-8 discovered
+
+SET PUSH, C        ; Save caller register state
+SET PUSH, X
+SET PUSH, Y
+SET PUSH, Z
+SET PUSH, I
+SET PUSH, J
+; C temporary pattern array index pointer
+; X current bit length to discover + 1, 9 to 3
+; Y current bit mask
+; Z masked input number
+; I bit mask positioner
+; J pattern index iterator
+; Bit patterns are pushed onto the stack as they are found
+
+; Find highest order set bit index
+; Loop X=15..0 { if (1<<X) & A: break }
+SET X, 16
+:CBP_HIGH_ORDER_LOOP
+SUB X, 1
+IFA 1, X
+  SET PC, CBP_HIGH_ORDER_FOUND
+SET B, 1
+SHL B, X
+IFB B, A
+  SET PC, CBP_HIGH_ORDER_FOUND
+SET PC, CBP_HIGH_ORDER_LOOP
+:CBP_HIGH_ORDER_FOUND
+; X contains bit index, B contains junk
+
+; Constrain X in [1, 8]
+ADD X, 1
+IFG X, 8
+  SET X, 8
+IFA 1, X
+  SET X, 1
+SET B, 0           ; Initialize final total
+
+:CBP_PATTERN_SIZE_LOOP
+; Loop X down to 2
+SET Y, 1           ; Calculate bit mask, (1 << X) - 1
+SHL Y, X
+SUB Y, 1
+
+SET I, 16
+SUB I, X
+:CBP_BIT_INDEX_LOOP
+; Loop I down to 0
+SET Z, A           ; masked_n = (n >> I) & mask
+SHR Z, I
+AND Z, Y
+IFL Z, 2           ; reject 0x00 and 0x01
+  SET PC, CBP_PATTERNS_LOOP_END
+
+; Search Z in stored patterns
+IFE B, 0
+  ; Pattern array is empty, add Z to it
+  SET PC, CBP_PATTERNS_LOOP_MISSING
+
+SET J, 0
+:CBP_PATTERNS_LOOP
+; Loop J up to B - 1
+SET C, SP          ; SP points to start of dynamic pattern array
+ADD C, J           ; Can't [SP+J] so we have to build up C with the address
+IFE [C], Z
+  SET PC, CBP_PATTERNS_LOOP_END     ; loop exit, Z was seen before
+ADD J, 1           ; loop increment
+IFL J, B
+  SET PC, CBP_PATTERNS_LOOP
+
+:CBP_PATTERNS_LOOP_MISSING
+; loop exit, Z is a new pattern, add to dynamic pattern array
+SET PUSH, Z
+ADD B, 1           ; Increment pattern count
+:CBP_PATTERNS_LOOP_END
+
+; In parent loop, CBP_BIT_INDEX_LOOP
+SUB I, 1           ; loop decrement and test
+IFA I, -1
+  SET PC, CBP_BIT_INDEX_LOOP
+
+; In parent loop, CBP_PATTERN_SIZE_LOOP
+SUB X, 1           ; loop decrement and test
+IFG X, 1
+  SET PC, CBP_PATTERN_SIZE_LOOP
+
+; In main function, B contains answer
+:CBP_END
+ADD SP, B          ; Reset local pattern alloca
+SET J, POP         ; Restore registers
+SET I, POP
+SET Z, POP
+SET Y, POP
+SET X, POP
+SET C, POP
+SET PC, POP        ; Return

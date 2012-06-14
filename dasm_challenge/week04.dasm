@@ -1,0 +1,145 @@
+; DCPU-16 Challenge Week 4
+; Find the Nth prime number
+; DCPU-16 v1.7
+; 2012-June-7 Erocs
+
+SET A, 6200       ; N
+JSR FUNC_PRIME_N
+; Answer in A     ; The Prime
+
+; HALT HALT HALT
+SUB PC, 1
+; HALT HALT HALT
+
+
+
+:FUNC_PRIME_N
+; Sieve of Eratosthenes
+; A input is the index of prime to retrieve
+; A output is the resulting prime number or 0xFFFF on failure
+; The memory space 0xE000 to 0xEFFF is used for prime factoring.
+
+; Save register state
+SET PUSH, B
+SET PUSH, C
+SET PUSH, X
+SET PUSH, Y
+SET PUSH, Z
+
+; Handle special case values for N
+IFE A, 0
+  SET PC, PRIME_N_0
+IFE A, 1
+  SET PC, PRIME_N_1
+IFE A, 2
+  SET PC, PRIME_N_2
+
+; 0xE000 to 0xEFFF is reserved for prime factoring
+SET Z, 0xE000
+
+; Cheat and initialize our bitmap for pre-calculated N=2 and N=3.
+; They take up the longest processing time.
+:PRIME_N_INIT_LOOP
+SET [Z], 0xD75D
+SET [Z+1], 0x5D75
+SET [Z+2], 0x75D7
+ADD Z, 3
+IFL Z, 0xEFFE
+  SET PC, PRIME_N_INIT_LOOP
+SET [0xE000], 0xD750
+SET [0xEFFF], 0xD75D
+
+; A is the prime counter, N
+; B is the current prime number
+SUB A, 2
+SET B, 4
+SET Z, 0xE000
+
+:PRIME_N_LOOP
+; X is the bit number for the prime's byte
+; Y is the bit mask for the prime's byte
+; C is the index for the prime's byte
+ADD B, 1
+IFG B, 0xFFFE
+  SET PC, PRIME_N_FAILURE
+SET Y, 1
+SET X, B
+MOD X, 16
+SHL Y, X
+SET C, B
+DIV C, 16
+ADD C, Z
+IFB [C], Y
+  SET PC, PRIME_N_LOOP
+SUB A, 1
+IFE A, 0
+  SET PC, PRIME_N_FOUND_IT
+IFL B, 0x8000
+  JSR FUNC_PRIME_PROPAGATE
+SET PC, PRIME_N_LOOP
+
+:PRIME_N_0
+SET A, 1
+SET PC, PRIME_N_END
+
+:PRIME_N_1
+SET A, 2
+SET PC, PRIME_N_END
+
+:PRIME_N_2
+SET A, 3
+SET PC, PRIME_N_END
+
+:PRIME_N_FOUND_IT
+SET A, B
+SET PC, PRIME_N_END
+
+:PRIME_N_FAILURE
+SET A, 0xFFFF
+
+:PRIME_N_END
+SET Z, POP             ; Pop stack
+SET Y, POP
+SET X, POP
+SET C, POP
+SET B, POP
+SET PC, POP            ; Return
+
+
+:FUNC_PRIME_PROPAGATE
+; Internal helper function for FUNC_PRIME_N.
+; Propagates the prime through the sieve, setting bits in the prime
+; bit mask if the corresponding number is not a prime.
+SET PUSH, I            ; Push stack
+SET PUSH, C
+SET PUSH, X
+SET PUSH, Y
+; B is the prime to propagate
+; I is the loop counter
+; C is the prime's multiple and then index for the prime's byte
+; X is the bit number for the prime's byte
+; Y is the bit mask for the prime's byte
+; Z is the memory address of the prime bit mask
+SET I, 1               ; Initialize loop counter
+
+:PRIME_PROPAGATE_LOOP
+ADD I, 1
+SET C, B
+MUL C, I
+IFN EX, 0
+  SET PC, PRIME_PROPAGATE_END
+SET Y, 1
+SET X, C
+MOD X, 16
+SHL Y, X
+DIV C, 16
+ADD C, Z
+BOR [C], Y
+SET PC, PRIME_PROPAGATE_LOOP
+
+:PRIME_PROPAGATE_END
+SET Y, POP            ; Pop stack
+SET X, POP
+SET C, POP
+SET I, POP
+SET PC, POP           ; Return

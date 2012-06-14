@@ -1,0 +1,43 @@
+; DCPU-16 Challenge Week 3
+; Count the number of bits set, DCPU-16 v1.1
+; 2012-May-24 Erocs
+
+; Parameters
+SET A, 0xFFFF  ; Input value to process, output value
+
+; Local storage
+SET B, A
+
+AND A, 0xAAAA
+AND B, 0x5555
+SHR A, 1
+ADD A, B
+SET B, A
+AND A, 0xCCCC
+AND B, 0x3333
+SHR A, 2
+ADD A, B
+SET B, A
+AND A, 0xF0F0
+AND B, 0x0F0F
+SHR A, 4
+ADD A, B
+SET B, A
+AND A, 0xFF00
+AND B, 0x00FF
+SHR A, 8
+ADD A, B
+; Complete, Result in A
+
+; Assuming v1.1 display
+; Assuming no solution greater than 99
+SET B, A
+DIV A, 10
+ADD A, 0x2030    ; Green on Black + char index
+SET [0x8000], A
+MOD B, 10
+ADD B, 0x2030
+SET [0x8001], B
+
+; Halt
+SUB PC, 1

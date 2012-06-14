@@ -1,0 +1,46 @@
+; DCPU-16 Challenge Week 2
+; Triangular number sum for the DCPU-16 v1.1
+; 2012-May-07 Erocs
+
+; Parameters
+SET Y, 0xFFFF  ; Target, Input value X
+SET X, 0       ; Counter, Output value N
+SET A, 0       ; Local variable, Triangle
+SET B, 0       ; Local variable, Total
+
+; Parameter sanity
+IFG Y, 0xFD38    ; Larger targets overflow 16-bit ints
+  SET PC, MAX_RESULT
+SET PC, LOOP_NEXT
+
+; On Y overflow, the result will always be 73.
+; Props to CommaKiller
+:MAX_RESULT
+SET X, 73
+SET PC, LOOP_COMPLETE
+
+; Function start
+; Y is the target value
+; X is the final triangle number index
+:LOOP_NEXT
+ADD X, 1
+ADD A, X
+ADD B, A
+IFG Y, B
+  SET PC, LOOP_NEXT
+:LOOP_COMPLETE
+; Complete, Answer in X
+
+; Assuming v1.1 display
+; Assuming no solution greater than 99
+SET A, X
+DIV A, 10
+ADD A, 0x2030    ; Green on Black + char index
+SET [0x8000], A
+SET B, X
+MOD B, 10
+ADD B, 0x2030
+SET [0x8001], B
+
+; Halt
+SUB PC, 1
